@@ -262,11 +262,11 @@ export default {
 
 <style>
 .started {
-  @apply text-green-700 border border-green-300 cursor-not-allowed
+  @apply text-green-700 border border-green-300
 }
 
 .aborted {
-  @apply text-red-700 border border-red-300 cursor-not-allowed
+  @apply text-red-700 border border-red-300
 }
 
 .next {
@@ -278,7 +278,7 @@ export default {
 }
 
 .finished {
-  @apply text-cyan-700 border border-cyan-300 cursor-not-allowed
+  @apply text-cyan-700 border border-cyan-300
 }
 
 .created-img {
