@@ -138,20 +138,7 @@
 
       </div>
       <Modal v-if="openedModal" :modal-name="'confirm'" @closeModal="openedModal = false">
-        <template>
-          <div>
-            <div class="mt-3 text-center sm:mt-5">
-              <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Are you sure you want this program?</h3>
-              <div class="mt-2">
-                <p class="text-sm text-gray-500">After confirmation, {{totalPrice}} KM will be deducted from your account, and you can start the process.</p>
-              </div>
-            </div>
-          </div>
-          <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-            <Button class="w-full" @action="createCardProgram()" button-text="Confirm" />
-            <Button @action="openedModal = false; totalPrice = 0;" :is-primary="false" button-text="Cancel" />
-          </div>
-        </template>
+        <PaymentConfirmation item="program" @confirm="createCardProgram()" :total-price="totalPrice" @cancel="openedModal = false; totalPrice = 0;" />
       </Modal>
     </main>
 
@@ -163,8 +150,9 @@ import Bars3Icon from "../components/icons/Bars3Icon";
 import Modal from "../components/icons/Modal";
 import Button from "../components/common/Button";
 import InputField from "../components/common/InputField";
+import PaymentConfirmation from "../components/common/PaymentConfirmation";
 export default {
-  components: {InputField, Button, Modal, Bars3Icon, XMarkIcon, Footer},
+  components: {PaymentConfirmation, InputField, Button, Modal, Bars3Icon, XMarkIcon, Footer},
   layout: 'app',
   data() {
     return {
@@ -189,6 +177,7 @@ export default {
     await this.fetchPrograms()
     await this.fetchSteps()
   },
+
 
   computed: {
     totalPriceCombinedProgram() {
@@ -234,18 +223,13 @@ export default {
         await this.$axios.put('/card/balance', {
           balance: this.amountToUpdate
         }).then(res => {
-          let userToUpdate = this.deepClone(this.$auth.user)
-          userToUpdate.cards[0].card.balance = res.data.toFixed(2);
-
-          this.$auth.setUser(userToUpdate)
-          this.balance = res.data.toFixed(2)
-          this.amountToUpdate = null
+          this.$alert.notify({
+            type: 'success',
+            message: 'You have been successfully updated your credit balance!'
+          })
 
         })
-        this.$alert.notify({
-          type: 'success',
-          message: 'You have been successfully updated your credit balance!'
-        })
+        location.reload()
       } catch (e) {
         e.response.errors.map((err) => {
           Object.keys(this.errors).map((obj) => {
@@ -281,7 +265,7 @@ export default {
         return false
       }
       try {
-        const res = await this.$axios.post('/prepare-facility', {
+        const res = await this.$axios.post('/card-programs', {
           program_id: this.selectedProgram.id,
           steps: this.selectedSteps,
           total_price: this.totalPrice
@@ -290,20 +274,16 @@ export default {
         await this.$router.push(`/start/${res.data.card_program_id}`)
 
       } catch (e) {
-        this.$nuxt.error({
-          statusCode: e.response.status,
-          message: 'An error occurred'
-        })
+        if(e.response.status === 400) {
+          return this.$alert.notify({type: 'error', message: e.response.data})
+        } else {
+          this.$nuxt.error({
+            statusCode: e.response.status,
+            message: 'An error occurred'
+          })
+        }
+
       }
-    },
-    deepClone(variable) {
-      let res, obj, key
-      res = Array.isArray(variable) ? [] : {}
-      for (key in variable) {
-        obj = variable[key]
-        res[key] = (typeof obj === 'object' && obj !== null) ? this.deepClone(obj) : obj
-      }
-      return res
     },
   }
 }

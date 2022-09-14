@@ -66,7 +66,11 @@
         
 
     </div>
+    <Modal v-if="openedModal" :modal-name="'confirm'" @closeModal="openedModal = false">
+      <PaymentConfirmation item="step" @confirm="createNewStep(currentStep);openedModal = false" :total-price="currentStep.step.price" @cancel="openedModal = false;" />
+    </Modal>
   </main>
+
 </template>
 
 <script>
@@ -76,8 +80,10 @@ import DollarIcon from "../../../components/icons/DollarIcon";
 import PlayIcon from "../../../components/icons/PlayIcon";
 import ReplayIcon from "../../../components/icons/ReplayIcon";
 import StopIcon from "../../../components/icons/StopIcon";
+import Modal from "../../../components/icons/Modal";
+import PaymentConfirmation from "../../../components/common/PaymentConfirmation";
 export default {
-  components: {StopIcon, ReplayIcon, PlayIcon, DollarIcon, ClockIcon, Clock},
+  components: {PaymentConfirmation, Modal, StopIcon, ReplayIcon, PlayIcon, DollarIcon, ClockIcon, Clock},
   layout: 'app',
   data() {
     return {
@@ -93,6 +99,7 @@ export default {
       currentStep: null,
       nextStepIdx: 0,
       hovered: null,
+      openedModal: false,
     }
   },
   async fetch() {
@@ -102,11 +109,17 @@ export default {
     const regexExp = /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/gi;
     return regexExp.test(params.pid)
   },
+  created() {
+    console.log(this.autoCharge, 'autoCharge')
+  },
   computed: {
     firstStep() {
       return this.cardProgram.steps.findIndex(
           (element) => element.status === 'CREATED'
       )
+    },
+    autoCharge() {
+      return this.$auth.user.cards[0].card.auto_charge
     },
     stepInProgress() {
       let index = this.cardProgram.steps.findIndex((element) => element.status === 'STARTED')
@@ -165,6 +178,8 @@ export default {
           this.currentStep = null
         }
 
+        return false;
+
       })
       .catch(e => {
         this.$nuxt.error({
@@ -189,7 +204,15 @@ export default {
 
         this.controlStep(res.data, replayedStepIdx)
       }).catch(e => {
-        this.$alert.notify({type: 'error', message: e.response.data})
+        if(e.response.status === 400) {
+          return this.$alert.notify({type: 'error', message: e.response.data})
+        } else {
+          this.$nuxt.error({
+            statusCode: e.response.status,
+            message: 'An error occurred'
+          })
+        }
+
       })
     },
     controlStep(current, i) {
@@ -210,13 +233,17 @@ export default {
         case 'FINISHED' :
           if(!this.stepInProgress) {
             this.currentStep = current;
-            this.createNewStep(current)
+            this.autoCharge
+                ? this.createNewStep(current)
+                : this.openedModal = true
           }
         break;
         case 'ABORTED' : {
           if(!this.stepInProgress) {
             this.currentStep = current;
-            this.createNewStep(current)
+            this.autoCharge
+                ? this.createNewStep(current)
+                : this.openedModal = true
           }
         }
         break;
@@ -246,6 +273,7 @@ export default {
           this.hours = '00'
           this.minutes = '00'
           this.seconds = '00'
+          return false
         }
       },100)
     },
